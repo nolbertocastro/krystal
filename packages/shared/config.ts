@@ -67,10 +67,25 @@ const allEnv = z.object({
     .optional(),
   OLLAMA_BASE_URL: z.string().url().optional(),
   OLLAMA_KEEP_ALIVE: z.string().optional(),
+  // ── Anthropic provider (mymind fork) ─────────────────────────────
+  // Native Claude support: tagging, summarization, vision, embeddings via Voyage.
+  // Set ANTHROPIC_API_KEY to enable. Defaults pick sensible Claude models.
+  ANTHROPIC_API_KEY: z.string().optional(),
+  ANTHROPIC_BASE_URL: z.string().url().optional(),
+  ANTHROPIC_TIMEOUT_SEC: z.coerce.number().positive().optional(),
+  // Optional Voyage AI key for embeddings (Anthropic's recommended provider).
+  // If absent, embeddings are disabled when Anthropic is the active inference provider.
+  VOYAGE_API_KEY: z.string().optional(),
   INFERENCE_JOB_TIMEOUT_SEC: z.coerce.number().default(30),
   INFERENCE_FETCH_TIMEOUT_SEC: z.coerce.number().default(300),
   INFERENCE_TEXT_MODEL: z.string().default("gpt-4.1-mini"),
   INFERENCE_IMAGE_MODEL: z.string().default("gpt-4o-mini"),
+  // When ANTHROPIC_API_KEY is set, these defaults take over (overridable).
+  INFERENCE_ANTHROPIC_TEXT_MODEL: z.string().default("claude-sonnet-4-6"),
+  INFERENCE_ANTHROPIC_IMAGE_MODEL: z.string().default("claude-sonnet-4-6"),
+  // Force a specific provider when multiple keys are configured. Leave unset
+  // to use the default precedence (anthropic > openai > ollama).
+  INFERENCE_PROVIDER: z.enum(["anthropic", "openai", "ollama"]).optional(),
   EMBEDDING_ENABLE_AUTO_INDEXING: stringBool("false"),
   EMBEDDING_TEXT_MODEL: z.string().default("text-embedding-3-small"),
   EMBEDDING_DIMENSIONS: z.coerce.number().default(1536),
@@ -303,7 +318,10 @@ const serverConfigSchema = allEnv.transform((val, ctx) => {
         : undefined,
     },
     inference: {
-      isConfigured: !!val.OPENAI_API_KEY || !!val.OLLAMA_BASE_URL,
+      isConfigured:
+        !!val.OPENAI_API_KEY ||
+        !!val.OLLAMA_BASE_URL ||
+        !!val.ANTHROPIC_API_KEY,
       numWorkers: val.INFERENCE_NUM_WORKERS,
       jobTimeoutSec: val.INFERENCE_JOB_TIMEOUT_SEC,
       fetchTimeoutSec: val.INFERENCE_FETCH_TIMEOUT_SEC,
@@ -315,6 +333,13 @@ const serverConfigSchema = allEnv.transform((val, ctx) => {
       openAIReasoningEffort: val.OPENAI_REASONING_EFFORT,
       ollamaBaseUrl: val.OLLAMA_BASE_URL,
       ollamaKeepAlive: val.OLLAMA_KEEP_ALIVE,
+      anthropicApiKey: val.ANTHROPIC_API_KEY,
+      anthropicBaseUrl: val.ANTHROPIC_BASE_URL,
+      anthropicTimeoutSec: val.ANTHROPIC_TIMEOUT_SEC,
+      anthropicTextModel: val.INFERENCE_ANTHROPIC_TEXT_MODEL,
+      anthropicImageModel: val.INFERENCE_ANTHROPIC_IMAGE_MODEL,
+      voyageApiKey: val.VOYAGE_API_KEY,
+      forcedProvider: val.INFERENCE_PROVIDER,
       textModel: val.INFERENCE_TEXT_MODEL,
       imageModel: val.INFERENCE_IMAGE_MODEL,
       inferredTagLang: val.INFERENCE_LANG,

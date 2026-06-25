@@ -1,3 +1,4 @@
+import Anthropic from "@anthropic-ai/sdk";
 import { Ollama } from "ollama";
 import OpenAI from "openai";
 import { zodResponseFormat } from "openai/helpers/zod";
@@ -152,11 +153,28 @@ export interface OpenAIInferenceConfig {
 }
 
 export class InferenceClientFactory {
+  // Provider priority order. Anthropic wins when its key is set so existing
+  // OpenAI-style keys can coexist without surprises. Override with
+  // INFERENCE_PROVIDER if you ever need to force a specific one.
   static build(): InferenceClient | null {
+    const forced = serverConfig.inference.forcedProvider;
+    if (forced === "anthropic" && serverConfig.inference.anthropicApiKey) {
+      return AnthropicInferenceClient.fromConfig();
+    }
+    if (forced === "openai" && serverConfig.inference.openAIApiKey) {
+      return OpenAIInferenceClient.fromConfig();
+    }
+    if (forced === "ollama" && serverConfig.inference.ollamaBaseUrl) {
+      return OllamaInferenceClient.fromConfig();
+    }
+
+    // Default precedence when no explicit provider is forced.
+    if (serverConfig.inference.anthropicApiKey) {
+      return AnthropicInferenceClient.fromConfig();
+    }
     if (serverConfig.inference.openAIApiKey) {
       return OpenAIInferenceClient.fromConfig();
     }
-
     if (serverConfig.inference.ollamaBaseUrl) {
       return OllamaInferenceClient.fromConfig();
     }
@@ -469,5 +487,225 @@ class OllamaInferenceClient implements InferenceClient {
     });
     const usage = parseEmbeddingUsage(embedding);
     return { embeddings: embedding.embeddings, ...usage };
+  }
+}
+
+// ── Anthropic (Claude) inference client ────────────────────────────────────
+// Added in the mymind fork. Supports text + vision tagging/summarization using
+// Anthropic's native Messages API. Embeddings can optionally be routed to
+// Voyage AI (Anthropic's recommended embedding partner) when VOYAGE_API_KEY is
+// set; otherwise embeddings are disabled (auto-tagging and summarization still
+// work without embeddings).
+export interface AnthropicInferenceConfig {
+  apiKey: string;
+  baseURL?: string;
+  timeoutSec?: number;
+  textModel: string;
+  imageModel: string;
+  contextLength: number;
+  maxOutputTokens: number;
+  outputSchema: "structured" | "json" | "plain";
+  voyageApiKey?: string;
+  embeddingModel: string;
+}
+
+const ANTHROPIC_DEFAULT_HEADERS = {
+  "X-Title": "Karakeep (mymind fork)",
+  "anthropic-version": "2023-06-01",
+};
+
+/**
+ * Build the system prompt instructing Claude to emit JSON. Anthropic doesn't
+ * have an OpenAI-style response_format; we steer with strong instructions and
+ * a small JSON-schema hint when available.
+ */
+function buildJsonSystemPrompt(
+  schema: z.ZodSchema<unknown> | null,
+  outputSchema: "structured" | "json" | "plain",
+): string | undefined {
+  if (outputSchema === "plain") return undefined;
+
+  const base =
+    "You are a precise data extractor. Respond with ONLY valid JSON. " +
+    "Do not wrap the JSON in markdown code fences. " +
+    "Do not include any explanatory text before or after the JSON.";
+
+  if (outputSchema === "structured" && schema) {
+    const jsonSchema = z.toJSONSchema(schema);
+    return `${base} The JSON MUST match this schema exactly:\n${JSON.stringify(
+      jsonSchema,
+    )}`;
+  }
+  return base;
+}
+
+/**
+ * Extract text from a Claude Messages API response. Each content block is
+ * checked; we concatenate all text blocks (typically there is just one).
+ */
+function extractClaudeText(message: Anthropic.Message): string {
+  return message.content
+    .filter(
+      (block): block is Anthropic.TextBlock => block.type === "text",
+    )
+    .map((block) => block.text)
+    .join("\n")
+    .trim();
+}
+
+/**
+ * Strip a stray markdown code fence if Claude still emits one despite the
+ * instructions. Idempotent on clean JSON.
+ */
+function stripCodeFence(s: string): string {
+  const trimmed = s.trim();
+  if (trimmed.startsWith("```")) {
+    return trimmed
+      .replace(/^```(?:json)?\s*/i, "")
+      .replace(/\s*```$/i, "")
+      .trim();
+  }
+  return trimmed;
+}
+
+export class AnthropicInferenceClient implements InferenceClient {
+  private anthropic: Anthropic;
+  private config: AnthropicInferenceConfig;
+
+  constructor(config: AnthropicInferenceConfig) {
+    this.config = config;
+    this.anthropic = new Anthropic({
+      apiKey: config.apiKey,
+      baseURL: config.baseURL,
+      timeout:
+        config.timeoutSec !== undefined ? config.timeoutSec * 1000 : undefined,
+      defaultHeaders: ANTHROPIC_DEFAULT_HEADERS,
+    });
+  }
+
+  static fromConfig(): AnthropicInferenceClient {
+    return new AnthropicInferenceClient({
+      apiKey: serverConfig.inference.anthropicApiKey!,
+      baseURL: serverConfig.inference.anthropicBaseUrl,
+      timeoutSec: serverConfig.inference.anthropicTimeoutSec,
+      textModel: serverConfig.inference.anthropicTextModel,
+      imageModel: serverConfig.inference.anthropicImageModel,
+      contextLength: serverConfig.inference.contextLength,
+      maxOutputTokens: serverConfig.inference.maxOutputTokens,
+      outputSchema: serverConfig.inference.outputSchema,
+      voyageApiKey: serverConfig.inference.voyageApiKey,
+      embeddingModel: serverConfig.embedding.textModel,
+    });
+  }
+
+  async inferFromText(
+    prompt: string,
+    _opts: Partial<InferenceOptions>,
+  ): Promise<InferenceResponse> {
+    const opts: InferenceOptions = { ...defaultInferenceOptions, ..._opts };
+    const system = buildJsonSystemPrompt(opts.schema, this.config.outputSchema);
+
+    const msg = await this.anthropic.messages.create(
+      {
+        model: this.config.textModel,
+        max_tokens: this.config.maxOutputTokens,
+        system,
+        messages: [{ role: "user", content: prompt }],
+      },
+      { signal: opts.abortSignal },
+    );
+
+    const response = stripCodeFence(extractClaudeText(msg));
+    if (!response) {
+      throw new Error("Got no message content from Anthropic");
+    }
+    const totalTokens =
+      (msg.usage.input_tokens ?? 0) + (msg.usage.output_tokens ?? 0);
+    return { response, totalTokens };
+  }
+
+  async inferFromImage(
+    prompt: string,
+    contentType: string,
+    image: string,
+    _opts: Partial<InferenceOptions>,
+  ): Promise<InferenceResponse> {
+    const opts: InferenceOptions = { ...defaultInferenceOptions, ..._opts };
+    const system = buildJsonSystemPrompt(opts.schema, this.config.outputSchema);
+
+    const msg = await this.anthropic.messages.create(
+      {
+        model: this.config.imageModel,
+        max_tokens: this.config.maxOutputTokens,
+        system,
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "image",
+                source: {
+                  type: "base64",
+                  // Anthropic accepts a narrow set of MIME types here; fall
+                  // back to png if Karakeep gave us something exotic.
+                  media_type: (["image/jpeg", "image/png", "image/gif", "image/webp"].includes(
+                    contentType,
+                  )
+                    ? contentType
+                    : "image/png") as Anthropic.ImageBlockParam["source"]["media_type"],
+                  data: image,
+                },
+              },
+              { type: "text", text: prompt },
+            ],
+          },
+        ],
+      },
+      { signal: opts.abortSignal },
+    );
+
+    const response = stripCodeFence(extractClaudeText(msg));
+    if (!response) {
+      throw new Error("Got no message content from Anthropic vision call");
+    }
+    const totalTokens =
+      (msg.usage.input_tokens ?? 0) + (msg.usage.output_tokens ?? 0);
+    return { response, totalTokens };
+  }
+
+  async generateEmbeddingFromText(
+    inputs: string[],
+  ): Promise<EmbeddingResponse> {
+    if (!this.config.voyageApiKey) {
+      throw new Error(
+        "Embedding generation requires VOYAGE_API_KEY when using the Anthropic provider. " +
+          "Either set VOYAGE_API_KEY (https://www.voyageai.com/) or disable " +
+          "EMBEDDING_ENABLE_AUTO_INDEXING.",
+      );
+    }
+
+    // Voyage AI has an OpenAI-shaped embeddings endpoint.
+    const res = await fetch("https://api.voyageai.com/v1/embeddings", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${this.config.voyageApiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: this.config.embeddingModel || "voyage-3",
+        input: inputs,
+      }),
+    });
+
+    if (!res.ok) {
+      throw new Error(
+        `Voyage embeddings request failed (${res.status}): ${await res.text()}`,
+      );
+    }
+
+    const json = (await res.json()) as unknown;
+    const embeddings = parseEmbeddingResponse(json);
+    const usage = parseEmbeddingUsage(json);
+    return { embeddings, ...usage };
   }
 }
