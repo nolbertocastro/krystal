@@ -75,6 +75,9 @@ function LinkImage({
     );
   }
 
+  // mymind fork: subtle Ken-Burns-style zoom on hover. The parent card uses a
+  // `group` class (added in BookmarkLayoutAdaptingCard) so we can scope this
+  // transform to image children only.
   return (
     <Link
       href={onClickUrl}
@@ -82,7 +85,11 @@ function LinkImage({
       rel="noreferrer"
       className={className}
     >
-      <div className="relative size-full flex-1">{img}</div>
+      <div className="relative size-full flex-1 overflow-hidden">
+        <div className="relative size-full transform-gpu transition-transform duration-500 ease-out group-hover/card:scale-[1.03]">
+          {img}
+        </div>
+      </div>
     </Link>
   );
 }

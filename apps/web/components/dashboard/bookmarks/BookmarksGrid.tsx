@@ -28,6 +28,15 @@ import BookmarkCard from "./BookmarkCard";
 import EditorCard from "./EditorCard";
 import UnknownCard from "./UnknownCard";
 
+// mymind-inspired artistic card styling.
+// Goal: soft, premium, gallery-grade cards with subtle lift, smooth motion,
+// and rounded corners that feel hand-curated rather than utilitarian.
+//
+//   • No hard borders — use a very faint border + soft shadow that grows on hover.
+//   • More vertical breathing room between cards (mb-5 vs the upstream mb-4).
+//   • Rounded-2xl + overflow-hidden so internal media (images, summaries)
+//     respect the card silhouette.
+//   • transform-gpu + will-change-transform keeps the lift cheap on long grids.
 function StyledBookmarkCard({
   children,
   className,
@@ -39,7 +48,14 @@ function StyledBookmarkCard({
   return (
     <Slot
       className={cn(
-        "mb-4 border border-border bg-card hover:shadow-lg hover:transition-shadow",
+        "mb-5 overflow-hidden rounded-2xl bg-card",
+        "border border-border/40",
+        "shadow-[0_1px_2px_rgba(0,0,0,0.04)]",
+        "transition-[transform,box-shadow,border-color] duration-300 ease-out",
+        "hover:shadow-[0_12px_30px_-8px_rgba(0,0,0,0.18)]",
+        "hover:border-border/70",
+        "hover:-translate-y-0.5",
+        "transform-gpu will-change-transform",
         className,
       )}
       {...props}

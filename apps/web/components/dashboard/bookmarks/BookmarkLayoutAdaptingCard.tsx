@@ -302,7 +302,9 @@ function ListView({
   return (
     <div
       className={cn(
-        "group relative flex max-h-96 gap-4 overflow-hidden rounded-lg p-2",
+        // mymind fork: `group/card` lets child images zoom on card hover
+        // without colliding with the unnamed `group` used by HoverActionBar.
+        "group group/card relative flex max-h-96 gap-4 overflow-hidden rounded-lg p-2",
         className,
       )}
       data-bookmark-index={bookmarkIndex}
@@ -368,7 +370,8 @@ function GridView({
   return (
     <div
       className={cn(
-        "group relative flex flex-col overflow-hidden rounded-lg",
+        // mymind fork: see ListView note for `group/card`.
+        "group group/card relative flex flex-col overflow-hidden rounded-lg",
         className,
         fitHeight && layout != "grid" ? "max-h-96" : "h-96",
       )}
@@ -415,7 +418,8 @@ function CompactView({
   return (
     <div
       className={cn(
-        "group relative flex flex-col overflow-hidden rounded-lg",
+        // mymind fork: see ListView note for `group/card`.
+        "group group/card relative flex flex-col overflow-hidden rounded-lg",
         className,
         "max-h-96",
       )}
