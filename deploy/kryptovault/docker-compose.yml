@@ -21,6 +21,11 @@ services:
       # Build from the repo root so the Dockerfile can copy the workspace.
       context: ../..
       dockerfile: docker/Dockerfile
+      # AIO target = web server + workers + DB migrations under one s6-overlay
+      # process supervisor. The Dockerfile defines `aio`, `web`, `workers`,
+      # `cli`, and `mcp` stages — without `target`, Docker builds the last
+      # one (mcp) which is NOT what we want.
+      target: aio
     image: mymind-fork:local
     restart: unless-stopped
     ports:
