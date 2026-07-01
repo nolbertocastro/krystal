@@ -189,45 +189,59 @@ export default function BookmarkPreview({
     content
   );
 
+  // mymind detail-modal right rail.
+  //
+  // Editorial section labels — TLDR / MIND TAGS / MIND NOTES — in the tiny
+  // uppercase tracked style seen in the user's screenshots. The title uses
+  // the serif face; separators are removed in favor of open whitespace so the
+  // rail reads like a curator's notecard rather than a settings panel.
   const detailsSection = (
-    <div className="flex flex-col gap-5">
-      <div className="flex flex-col gap-1">
-        <p className="line-clamp-2 text-ellipsis break-words text-lg font-medium">
+    <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-2">
+        <h1 className="line-clamp-3 text-ellipsis break-words font-serif text-3xl italic leading-tight text-foreground">
           {!title ? "Untitled" : title}
-        </p>
+        </h1>
         {sourceUrl && (
           <Link
             href={sourceUrl}
             target="_blank"
-            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+            className="flex items-center gap-1 text-[11px] uppercase tracking-[0.14em] text-muted-foreground hover:text-foreground"
           >
             <ExternalLink className="size-3" />
             <span>{t("preview.view_original")}</span>
           </Link>
         )}
       </div>
-      <Separator />
       <BookmarkMetadata bookmark={bookmark} />
-      <SummarizeBookmarkArea bookmark={bookmark} readOnly={!isOwner} />
-      <Separator />
-      <div className="flex flex-col gap-1.5">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          {t("common.tags")}
+
+      <div className="flex flex-col gap-2">
+        <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
+          TLDR
+        </p>
+        <SummarizeBookmarkArea bookmark={bookmark} readOnly={!isOwner} />
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
+          Mind Tags
         </p>
         <BookmarkTagsEditor bookmark={bookmark} disabled={!isOwner} />
       </div>
-      <Separator />
-      <div className="flex flex-col gap-1.5">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          {t("common.note")}
+
+      <div className="flex flex-col gap-2">
+        <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
+          Mind Notes
         </p>
         <NoteEditor bookmark={bookmark} disabled={!isOwner} />
       </div>
-      <Separator />
+
       <AttachmentBox bookmark={bookmark} readOnly={!isOwner} />
       <HighlightsBox bookmarkId={bookmark.id} readOnly={!isOwner} />
-      <Separator />
-      {isOwner && <ActionBar bookmark={bookmark} />}
+      {isOwner && (
+        <div className="border-t border-border/40 pt-4">
+          <ActionBar bookmark={bookmark} />
+        </div>
+      )}
     </div>
   );
 
@@ -250,7 +264,7 @@ export default function BookmarkPreview({
             {contentSection}
           </div>
           {!sidebarCollapsed && (
-            <div className="flex w-1/3 flex-col gap-3 overflow-auto border-l bg-muted/40 p-5">
+            <div className="flex w-1/3 flex-col gap-3 overflow-auto bg-background p-8">
               {detailsSection}
             </div>
           )}
