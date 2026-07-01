@@ -2,67 +2,81 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * mymind aesthetic palette
+ *
+ * Neutral + warm off-white base, one orange accent (#E85422), no borders on
+ * cards — separation comes from a soft shadow, not a stroke. Editorial serif
+ * (Instrument Serif via --font-serif) is used for the search hero and quote
+ * cards; body copy stays sans (Inter); notes use JetBrains Mono for the
+ * "typewriter paper" feel. See apps/web/app/layout.tsx for the next/font wiring.
+ */
+
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Light mode — cream paper */
+    --background: 40 15% 93%; /* #F1EFEA */
+    --foreground: 30 10% 10%; /* #1D1B18 */
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card: 48 33% 99%; /* #FEFEFC */
+    --card-foreground: 30 10% 10%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover: 48 33% 99%;
+    --popover-foreground: 30 10% 10%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    /* Primary is the mymind orange accent — used for CTAs and hero moments. */
+    --primary: 15 82% 52%; /* #E85422 */
+    --primary-foreground: 48 33% 99%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 40 12% 88%; /* soft warm grey card alt */
+    --secondary-foreground: 30 10% 10%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 40 12% 88%;
+    --muted-foreground: 40 4% 47%; /* #7C7973 */
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 15 82% 52%;
+    --accent-foreground: 48 33% 99%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 6 74% 45%;
+    --destructive-foreground: 48 33% 99%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    /* Borders are nearly-transparent — cards use shadow, not stroke. */
+    --border: 40 9% 85%; /* #DDDBD5 */
+    --input: 40 9% 85%;
+    --ring: 15 82% 52%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem; /* 12px — mymind card radius */
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    /* Dark mode — near-black warm charcoal, matches user's screenshots */
+    --background: 24 8% 7%; /* #141311 */
+    --foreground: 40 20% 92%; /* #EEECE6 */
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 30 6% 11%; /* #1E1D1B */
+    --card-foreground: 40 20% 92%;
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 30 6% 11%;
+    --popover-foreground: 40 20% 92%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 15 82% 52%; /* accent stays consistent across modes */
+    --primary-foreground: 48 33% 99%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 30 6% 15%;
+    --secondary-foreground: 40 20% 92%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 30 6% 15%;
+    --muted-foreground: 40 5% 52%; /* #8B8880 */
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 15 82% 52%;
+    --accent-foreground: 48 33% 99%;
 
-    --destructive: 0 80% 45%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 6 66% 45%;
+    --destructive-foreground: 40 20% 92%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    --border: 30 6% 18%;
+    --input: 30 6% 18%;
+    --ring: 15 82% 52%;
   }
 }
 
@@ -72,6 +86,7 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: "ss01", "cv11", "kern";
   }
 }
 
@@ -98,5 +113,21 @@
   .sidebar-scrollbar {
     scrollbar-width: thin;
     scrollbar-color: hsl(var(--muted-foreground) / 0.15) transparent;
+  }
+
+  /*
+   * mymind card shadow — cards float on the background instead of using a
+   * border. Layered shadow: a tight 1px lift plus a soft, wider drop for depth.
+   */
+  .mymind-card-shadow {
+    box-shadow:
+      0 1px 2px hsl(0 0% 0% / 0.04),
+      0 8px 24px -12px hsl(0 0% 0% / 0.06);
+  }
+
+  .dark .mymind-card-shadow {
+    box-shadow:
+      0 1px 2px hsl(0 0% 0% / 0.4),
+      0 8px 24px -12px hsl(0 0% 0% / 0.5);
   }
 }

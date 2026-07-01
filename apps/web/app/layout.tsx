@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Instrument_Serif, Inter, JetBrains_Mono } from "next/font/google";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 
 import "@karakeep/tailwind-config/globals.css";
@@ -15,9 +15,28 @@ import { Toaster } from "sonner";
 
 import { clientConfig } from "@karakeep/shared/config";
 
+// mymind aesthetic fonts.
+// Instrument Serif = editorial hero display, closest free match to Editorial New
+// / Cardinal used by mymind. JetBrains Mono for note-card typewriter feel.
 const inter = Inter({
   subsets: ["latin"],
   fallback: ["sans-serif"],
+  variable: "--font-sans",
+});
+
+const instrumentSerif = Instrument_Serif({
+  subsets: ["latin"],
+  weight: ["400"],
+  style: ["normal", "italic"],
+  fallback: ["Georgia", "serif"],
+  variable: "--font-serif",
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500"],
+  fallback: ["ui-monospace", "monospace"],
+  variable: "--font-mono",
 });
 
 export const metadata: Metadata = {
@@ -55,7 +74,9 @@ export default async function RootLayout({
       dir={isRTL ? "rtl" : "ltr"}
       suppressHydrationWarning
     >
-      <body className={inter.className}>
+      <body
+        className={`${inter.variable} ${instrumentSerif.variable} ${jetbrainsMono.variable} font-sans`}
+      >
         <NuqsAdapter>
           <Providers
             session={session}

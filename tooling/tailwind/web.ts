@@ -14,6 +14,22 @@ export default {
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
       },
+      fontFamily: {
+        // Wired to next/font CSS variables in apps/web/app/layout.tsx.
+        sans: ["var(--font-sans)", "system-ui", "sans-serif"],
+        serif: [
+          "var(--font-serif)",
+          "Instrument Serif",
+          "Georgia",
+          "serif",
+        ],
+        mono: [
+          "var(--font-mono)",
+          "ui-monospace",
+          "SFMono-Regular",
+          "monospace",
+        ],
+      },
       keyframes: {
         "accordion-down": {
           from: { height: "0" },
