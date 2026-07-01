@@ -1,7 +1,9 @@
 import { Suspense } from "react";
 import ErrorFallback from "@/components/dashboard/ErrorFallback";
 import Header from "@/components/dashboard/header/Header";
+import FloatingSearchPill from "@/components/dashboard/search/FloatingSearchPill";
 import DemoModeBanner from "@/components/DemoModeBanner";
+import RightRail from "@/components/shared/sidebar/RightRail";
 import { Separator } from "@/components/ui/separator";
 import LoadingSpinner from "@/components/ui/spinner";
 import ValidAccountCheck from "@/components/utils/ValidAccountCheck";
@@ -9,15 +11,16 @@ import { ErrorBoundary } from "react-error-boundary";
 
 import serverConfig from "@karakeep/shared/config";
 
-// mymind-style dashboard shell.
+// Krystal dashboard shell — Phase 3, PARA-style.
 //
-// The desktop sidebar is removed entirely — the grid is the identity. The
-// header carries navigation via a compact overflow menu. Content spans the
-// full viewport width with generous horizontal padding, so the masonry grid
-// reads edge-to-edge like mymind.
+// One huge inbox masonry grid. No left sidebar (killed in Phase 1). The
+// header is now identity-only (wordmark + profile). Search lives in a
+// floating bottom-center pill. Utility routes (Tags, Highlights, Archive,
+// Import, Settings, Theme) sit in a thin right-side rail.
 //
-// The `sidebar` prop is kept in the signature for API compatibility but is
-// intentionally not rendered on desktop. Mobile still uses a drawer.
+// The `sidebar` prop is kept in the signature for API compatibility with
+// the Karakeep dashboard route but is intentionally not rendered.
+// Mobile still uses the drawer via `mobileSidebar`.
 
 export default function SidebarLayout({
   children,
@@ -42,13 +45,19 @@ export default function SidebarLayout({
             <Separator />
           </div>
           {modal}
-          <div className="min-h-30 w-full px-4 py-6 sm:px-8 md:px-12">
+          {/* Bottom padding leaves room for the floating search pill so */}
+          {/* the last row of cards isn't obscured. */}
+          <div className="min-h-30 w-full px-4 pb-32 pt-6 sm:px-8 md:px-16 md:pr-24">
             <ErrorBoundary fallback={<ErrorFallback />}>
               <Suspense fallback={<LoadingSpinner />}>{children}</Suspense>
             </ErrorBoundary>
           </div>
         </main>
       </div>
+
+      {/* Global chrome that sits above the grid. */}
+      <RightRail />
+      <FloatingSearchPill />
     </div>
   );
 }

@@ -4,21 +4,19 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { Brain, Hash, Layers, Trash2 } from "lucide-react";
+import { Brain, Hash, Trash2 } from "lucide-react";
 
 import type { ZBookmark } from "@karakeep/shared/types/bookmarks";
 import { useUpdateBookmark } from "@karakeep/shared-react/hooks/bookmarks";
 
 import { BookmarkTagsEditor } from "./BookmarkTagsEditor";
 import DeleteBookmarkConfirmationDialog from "./DeleteBookmarkConfirmationDialog";
-import ManageListsModal from "./ManageListsModal";
 
 // Krystal card context menu.
 //
 // Right-click (or long-press on touch) any card in the grid to bring this up.
-// Four actions, matching the wireframe:
+// Three actions — PARA-style, no folders/spaces:
 //   #  Add tags
-//   O  Add to space
 //   ^  Top of Mind      (persists as `favourited` on the bookmark)
 //   🗑  Delete card       (destructive red)
 //
@@ -64,7 +62,6 @@ export function BookmarkContextMenuTrigger({
 
   // Dialog open state for each of the menu's actions.
   const [tagsOpen, setTagsOpen] = useState(false);
-  const [listsOpen, setListsOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   const openMenuAt = useCallback((x: number, y: number) => {
@@ -150,7 +147,6 @@ export function BookmarkContextMenuTrigger({
           position={menu.position}
           onClose={() => setMenu((m) => ({ ...m, open: false }))}
           onAddTags={() => setTagsOpen(true)}
-          onAddToSpace={() => setListsOpen(true)}
           onDelete={() => setDeleteOpen(true)}
         />
       )}
@@ -160,11 +156,6 @@ export function BookmarkContextMenuTrigger({
         bookmark={bookmark}
         open={tagsOpen}
         setOpen={setTagsOpen}
-      />
-      <ManageListsModal
-        bookmarkId={bookmark.id}
-        open={listsOpen}
-        setOpen={setListsOpen}
       />
       <DeleteBookmarkConfirmationDialog
         bookmark={bookmark}
@@ -183,14 +174,12 @@ function BookmarkContextMenuPanel({
   position,
   onClose,
   onAddTags,
-  onAddToSpace,
   onDelete,
 }: {
   bookmark: ZBookmark;
   position: MenuPosition;
   onClose: () => void;
   onAddTags: () => void;
-  onAddToSpace: () => void;
   onDelete: () => void;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
@@ -268,11 +257,6 @@ function BookmarkContextMenuPanel({
         icon={<Hash size={18} />}
         label="Add tags"
         onClick={wrap(onAddTags)}
-      />
-      <MenuItem
-        icon={<Layers size={18} />}
-        label="Add to space"
-        onClick={wrap(onAddToSpace)}
       />
       <MenuItem
         icon={<Brain size={18} />}
