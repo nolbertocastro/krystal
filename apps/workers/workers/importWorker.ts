@@ -586,11 +586,17 @@ export class ImportWorker {
       return 0;
     }
 
+    // Krystal fork: only a HARD crawl failure should reject the bookmark. A
+    // tagging failure means the AI tagger tripped (bad model config, rate
+    // limit, or transient error) — the bookmark itself is fine. Accept it and
+    // let the user re-run tagging from the UI (`Retry Tagging` action). Every
+    // rejected-for-tagging row we've seen was the vision model being unable to
+    // process an image; there is no reason to lose the underlying bookmark.
     const succeededItems = completedItems.filter(
-      (i) => i.crawlStatus !== "failure" && i.taggingStatus !== "failure",
+      (i) => i.crawlStatus !== "failure",
     );
     const failedItems = completedItems.filter(
-      (i) => i.crawlStatus === "failure" || i.taggingStatus === "failure",
+      (i) => i.crawlStatus === "failure",
     );
 
     logger.debug(
@@ -621,8 +627,7 @@ export class ImportWorker {
     // Mark failed items as failed
     if (failedItems.length > 0) {
       for (const item of failedItems) {
-        const reason =
-          item.crawlStatus === "failure" ? "Crawl failed" : "Tagging failed";
+        const reason = "Crawl failed";
         await db
           .update(importStagingBookmarks)
           .set({

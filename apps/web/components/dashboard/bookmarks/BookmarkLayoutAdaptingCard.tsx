@@ -31,6 +31,7 @@ import { useBookmarkListContext } from "@karakeep/shared-react/hooks/bookmark-li
 import { useUpdateBookmark } from "@karakeep/shared-react/hooks/bookmarks";
 import { useTRPC } from "@karakeep/shared-react/trpc";
 import { BookmarkTypes } from "@karakeep/shared/types/bookmarks";
+import { getCardAspect } from "@karakeep/shared/utils/cardAspect";
 import {
   getBookmarkTitle,
   isBookmarkStillTagging,
@@ -54,11 +55,14 @@ interface Props {
   fitHeight?: boolean;
   wrapTags: boolean;
   bookmarkIndex?: number;
-  // mymind fork: aspect ratio for the image well in grid/masonry mode.
-  //   - "4/3"  — default, editorial photo silhouette for link/asset previews
-  //   - "auto" — no forced aspect; used when the "image" slot is actually a
-  //             self-sized visual like a quote card or note preview
-  imageAspect?: "4/3" | "auto";
+  // Krystal fork: aspect ratio for the image well in grid/masonry mode. When
+  // omitted, `getCardAspect(bookmark, {hasImage})` picks the best fit from the
+  // URL/content type — phone-portrait for TikTok/Reels/Shorts, 16/9 for
+  // YouTube/Vimeo, 1/1 for Instagram photo posts and album art, 4/5 for
+  // Pinterest, 4/3 for editorial links, auto for text/tweets. Callers can
+  // override for special cases (e.g. TextCard forces "auto" when there's no
+  // banner). See packages/shared/utils/cardAspect.ts.
+  imageAspect?: import("@karakeep/shared/utils/cardAspect").CardAspect;
 }
 
 function BottomRow({
@@ -356,7 +360,7 @@ function GridView({
   className,
   wrapTags,
   bookmarkIndex,
-  imageAspect = "4/3",
+  imageAspect,
 }: Props & { layout: BookmarksLayoutTypes }) {
   const { showNotes, showTags, showTitle, imageFit } =
     useBookmarkDisplaySettings();
@@ -377,6 +381,13 @@ function GridView({
   //     that's the link-preview / note case.
   const img = image("grid", cn("w-full", imgFitClass));
   const hasImage = !!img;
+
+  // Krystal fork: derive card aspect from URL/content type when the caller
+  // didn't override. TikTok/Reels become 9/16 phones, YouTube 16/9, Instagram
+  // photos 1/1, tweets "auto" (no forced aspect). The prop still wins so
+  // TextCard can keep forcing "auto" when it renders a self-sized quote.
+  const resolvedAspect =
+    imageAspect ?? getCardAspect(bookmark, { hasImage });
 
   return (
     <div
@@ -399,7 +410,13 @@ function GridView({
         <div
           className={cn(
             "relative w-full overflow-hidden",
-            imageAspect === "4/3" && "aspect-[4/3]",
+            resolvedAspect === "9/16" && "aspect-[9/16]",
+            resolvedAspect === "4/5" && "aspect-[4/5]",
+            resolvedAspect === "1/1" && "aspect-square",
+            resolvedAspect === "3/4" && "aspect-[3/4]",
+            resolvedAspect === "4/3" && "aspect-[4/3]",
+            resolvedAspect === "16/9" && "aspect-video",
+            // "auto" — no forced aspect; image sizes to intrinsic height
           )}
         >
           {img}
@@ -411,7 +428,7 @@ function GridView({
        * body — don't render an extra content block underneath. Otherwise
        * render title/content/tags in the padded chrome area beneath the image.
        */}
-      {imageAspect !== "auto" &&
+      {resolvedAspect !== "auto" &&
         (hasContent ||
           note ||
           (showTags && !hasImage) ||
