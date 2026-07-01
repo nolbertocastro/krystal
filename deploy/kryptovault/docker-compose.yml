@@ -43,16 +43,22 @@ services:
       MEILI_ADDR: http://meilisearch:7700
       BROWSER_WEB_URL: http://chrome:9222
       DATA_DIR: /data
-      # AI defaults — DeepSeek V3.2 via OpenAI-compatible endpoint. Keys
-      # themselves come from .env (OPENAI_API_KEY). These pins ensure the
-      # provider selection is deterministic even if extra keys leak into
-      # the environment.
-      OPENAI_BASE_URL: https://api.deepseek.com
-      INFERENCE_TEXT_MODEL: deepseek-chat
-      INFERENCE_IMAGE_MODEL: deepseek-chat
-      INFERENCE_PROVIDER: openai
-      INFERENCE_ENABLE_AUTO_TAGGING: "true"
-      INFERENCE_ENABLE_AUTO_SUMMARIZATION: "true"
+      # AI defaults. Read from .env with sensible fallbacks so switching
+      # inference providers is a .env edit, not a compose edit. Krystal
+      # started on DeepSeek (text-only) — works great for text but has no
+      # vision endpoint, so image tagging fails silently. To fix, point at a
+      # provider with vision (OpenRouter, OpenAI, local Ollama, etc.):
+      #
+      #   OPENAI_BASE_URL=https://openrouter.ai/api/v1
+      #   OPENAI_API_KEY=sk-or-v1-...
+      #   INFERENCE_TEXT_MODEL=deepseek/deepseek-chat
+      #   INFERENCE_IMAGE_MODEL=google/gemini-2.0-flash-exp:free
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.deepseek.com}
+      INFERENCE_TEXT_MODEL: ${INFERENCE_TEXT_MODEL:-deepseek-chat}
+      INFERENCE_IMAGE_MODEL: ${INFERENCE_IMAGE_MODEL:-deepseek-chat}
+      INFERENCE_PROVIDER: ${INFERENCE_PROVIDER:-openai}
+      INFERENCE_ENABLE_AUTO_TAGGING: ${INFERENCE_ENABLE_AUTO_TAGGING:-true}
+      INFERENCE_ENABLE_AUTO_SUMMARIZATION: ${INFERENCE_ENABLE_AUTO_SUMMARIZATION:-true}
     depends_on:
       - meilisearch
       - chrome
