@@ -13,7 +13,7 @@ export const UserLocalSettingsCtx = createContext<
 >({
   bookmarkGridLayout: defaultLayout,
   lang: fallbackLng,
-  gridColumns: 3,
+  gridColumns: 5,
   showNotes: false,
   showTags: true,
   showTitle: true,

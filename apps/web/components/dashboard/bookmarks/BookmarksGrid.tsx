@@ -287,8 +287,8 @@ export default function BookmarksGrid({
       {bookmarkLayoutSwitch(layout, {
         masonry: (
           <Masonry
-            className="-ml-4 flex w-auto"
-            columnClassName="pl-4"
+            className="-ml-3 flex w-auto"
+            columnClassName="pl-3"
             breakpointCols={breakpointConfig}
           >
             {children}
@@ -296,8 +296,8 @@ export default function BookmarksGrid({
         ),
         grid: (
           <Masonry
-            className="-ml-4 flex w-auto"
-            columnClassName="pl-4"
+            className="-ml-3 flex w-auto"
+            columnClassName="pl-3"
             breakpointCols={breakpointConfig}
           >
             {children}

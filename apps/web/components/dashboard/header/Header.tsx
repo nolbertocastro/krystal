@@ -3,22 +3,54 @@ import { redirect } from "next/navigation";
 import GlobalActions from "@/components/dashboard/GlobalActions";
 import ProfileOptions from "@/components/dashboard/header/ProfileOptions";
 import { SearchInput } from "@/components/dashboard/search/SearchInput";
-import { getServerAuthSession } from "@/server/auth";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { getServerAuthSession } from "@/server/auth";
+import {
+  Archive,
+  Highlighter,
+  Home,
+  MoreHorizontal,
+  Tag,
+} from "lucide-react";
 
 // mymind-style top navigation.
 //
-// The design leads with an editorial serif search hero ("Search my mind…"),
-// then a right-side tab strip (Everything · Spaces · Serendipity). The bar is
-// intentionally airy: no visible input chrome, no drop-shadow, no logo. The
-// SearchInput below is styled to blend into the background so the placeholder
-// reads as a headline instead of a form field.
+// The header carries the identity now that the sidebar is gone:
+//   - Left:    "my mind" serif italic wordmark (the brand mark)
+//   - Center:  editorial serif search hero ("Search my mind…")
+//   - Right:   tab strip (Everything · Spaces) + overflow menu with the
+//              utility routes (Home, Tags, Highlights, Archive) that used
+//              to live in the sidebar.
+//
+// Serendipity has been removed per user preference.
 
 const TABS: { label: string; href: string }[] = [
   { label: "Everything", href: "/dashboard/bookmarks" },
   { label: "Spaces", href: "/dashboard/lists" },
-  { label: "Serendipity", href: "/dashboard/bookmarks?sort=random" },
 ];
+
+const OVERFLOW_ITEMS: { label: string; href: string; icon: React.ReactNode }[] =
+  [
+    { label: "Home", href: "/dashboard/bookmarks", icon: <Home size={16} /> },
+    { label: "Tags", href: "/dashboard/tags", icon: <Tag size={16} /> },
+    {
+      label: "Highlights",
+      href: "/dashboard/highlights",
+      icon: <Highlighter size={16} />,
+    },
+    {
+      label: "Archive",
+      href: "/dashboard/archive",
+      icon: <Archive size={16} />,
+    },
+  ];
 
 export default async function Header() {
   const session = await getServerAuthSession();
@@ -31,9 +63,21 @@ export default async function Header() {
       className={cn(
         "sticky left-0 right-0 top-0 z-50",
         "flex h-20 items-center gap-6",
-        "bg-background/85 px-8 py-4 backdrop-blur-md",
+        "bg-background/85 px-6 py-4 backdrop-blur-md md:px-10",
       )}
     >
+      {/* "my mind" wordmark — sits on the left where the sidebar used to be. */}
+      <Link
+        href="/dashboard/bookmarks"
+        className={cn(
+          "hidden shrink-0 select-none md:block",
+          "font-serif text-2xl italic tracking-tight",
+          "text-foreground/70 transition-colors hover:text-foreground",
+        )}
+      >
+        my mind
+      </Link>
+
       {/* Serif hero-styled search — placeholder becomes the visible headline. */}
       <div className="flex flex-1 items-center gap-3">
         <SearchInput
@@ -69,6 +113,36 @@ export default async function Header() {
             {tab.label}
           </Link>
         ))}
+
+        {/* Overflow menu holds the routes that used to sit in the sidebar. */}
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            aria-label="More"
+            className={cn(
+              "flex h-8 w-8 items-center justify-center rounded-full",
+              "text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+            )}
+          >
+            <MoreHorizontal size={18} />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            {OVERFLOW_ITEMS.map((item, idx) => (
+              <div key={item.href + idx}>
+                {idx === OVERFLOW_ITEMS.length - 1 && <DropdownMenuSeparator />}
+                <DropdownMenuItem asChild>
+                  <Link
+                    href={item.href}
+                    className="flex items-center gap-2 text-sm"
+                  >
+                    <span className="text-muted-foreground">{item.icon}</span>
+                    {item.label}
+                  </Link>
+                </DropdownMenuItem>
+              </div>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </nav>
 
       <div className="flex items-center">
