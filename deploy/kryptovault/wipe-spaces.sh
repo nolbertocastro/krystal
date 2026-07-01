@@ -8,8 +8,8 @@
 # row so the UI can't accidentally resurface them.
 #
 # The Karakeep AIO container doesn't ship the sqlite3 CLI — it uses the
-# Node bindings (better-sqlite3). So we execute a tiny Node script inside
-# the container that reuses those bindings.
+# Node bindings (better-sqlite3). So we pipe a tiny Node script into
+# `docker exec ... node` and let Node do the work.
 #
 # Run this on the NAS from anywhere:
 #
@@ -29,70 +29,59 @@ if ! docker ps --format '{{.Names}}' | grep -q "^${CONTAINER}\$"; then
   exit 1
 fi
 
-# Locate the better-sqlite3 module inside the container. Karakeep installs
-# it as a workspace dep; the path varies by pnpm hoisting layout, so we
-# search a couple of likely spots.
-find_bs3() {
-  docker exec -i "${CONTAINER}" sh -c '
-    for p in \
-      /app/apps/web/node_modules/better-sqlite3 \
-      /app/apps/workers/node_modules/better-sqlite3 \
-      /app/packages/db/node_modules/better-sqlite3 \
-      /app/node_modules/better-sqlite3; do
-      if [ -d "$p" ]; then echo "$p"; exit 0; fi
-    done
-    # Fallback: let node resolve it.
-    node -e "console.log(require.resolve(\"better-sqlite3\").replace(/\/build\/.*|\/lib\/.*/, \"\"))" 2>/dev/null && exit 0
-    # Ultimate fallback: pnpm store path.
-    find /app -maxdepth 8 -type d -name better-sqlite3 2>/dev/null | head -1
-  '
-}
-
-BS3_PATH="$(find_bs3 || true)"
-if [[ -z "${BS3_PATH}" ]]; then
-  echo "ERROR: could not locate better-sqlite3 inside ${CONTAINER}." >&2
-  echo "Try:  docker exec -it ${CONTAINER} node -e 'require(\"better-sqlite3\")'" >&2
-  exit 1
-fi
-
-# Emit the Node runner inline and pipe it in. We use the discovered
-# module path to avoid CWD-dependent resolution.
+# Run a Node script inside the container. We pass MODE via env and pipe
+# the script via stdin so bash doesn't try to parse SQL/JS punctuation.
 run_node() {
   local mode="$1"  # "count" or "wipe"
-  docker exec -i "${CONTAINER}" env DB_PATH="${DB_PATH}" BS3_PATH="${BS3_PATH}" MODE="${mode}" \
-    node -e "
-      const Database = require(process.env.BS3_PATH);
-      const db = new Database(process.env.DB_PATH, { readonly: process.env.MODE === 'count' });
-      // Correct Karakeep schema table names (see packages/db/schema.ts):
-      //   bookmarkLists       — the lists themselves
-      //   bookmarksInLists    — the membership rows
-      //   listCollaborators   — sharing rows
-      //   listInvitations     — pending share invites
-      if (process.env.MODE === 'count') {
-        const lists = db.prepare('SELECT COUNT(*) AS c FROM bookmarkLists').get().c;
-        const memb  = db.prepare('SELECT COUNT(*) AS c FROM bookmarksInLists').get().c;
-        const collab = db.prepare("SELECT COUNT(*) AS c FROM sqlite_master WHERE type='table' AND name='listCollaborators'").get().c
-          ? db.prepare('SELECT COUNT(*) AS c FROM listCollaborators').get().c : 0;
-        const invites = db.prepare("SELECT COUNT(*) AS c FROM sqlite_master WHERE type='table' AND name='listInvitations'").get().c
-          ? db.prepare('SELECT COUNT(*) AS c FROM listInvitations').get().c : 0;
-        console.log('bookmarkLists:     ' + lists);
-        console.log('bookmarksInLists:  ' + memb);
-        console.log('listCollaborators: ' + collab);
-        console.log('listInvitations:   ' + invites);
-      } else {
-        const tx = db.transaction(() => {
-          db.prepare('DELETE FROM bookmarksInLists').run();
-          // Clean up sharing tables too (may not exist in older schemas).
-          try { db.prepare('DELETE FROM listInvitations').run(); } catch (e) {}
-          try { db.prepare('DELETE FROM listCollaborators').run(); } catch (e) {}
-          db.prepare('DELETE FROM bookmarkLists').run();
-        });
-        tx();
-        db.exec('VACUUM');
-        console.log('wiped');
-      }
-      db.close();
-    "
+  docker exec -i \
+    -e DB_PATH="${DB_PATH}" \
+    -e MODE="${mode}" \
+    "${CONTAINER}" node <<'NODE'
+const Database = require('better-sqlite3');
+const db = new Database(process.env.DB_PATH, {
+  readonly: process.env.MODE === 'count',
+});
+
+// Correct Karakeep schema names (see packages/db/schema.ts):
+//   bookmarkLists       — the lists themselves
+//   bookmarksInLists    — membership rows
+//   listCollaborators   — sharing rows (may not exist on older schemas)
+//   listInvitations     — pending share invites (may not exist)
+
+function tableExists(name) {
+  const row = db
+    .prepare("SELECT 1 AS x FROM sqlite_master WHERE type='table' AND name=?")
+    .get(name);
+  return !!row;
+}
+
+function count(name) {
+  if (!tableExists(name)) return '(table not present)';
+  return db.prepare('SELECT COUNT(*) AS c FROM ' + name).get().c;
+}
+
+if (process.env.MODE === 'count') {
+  console.log('bookmarkLists:     ' + count('bookmarkLists'));
+  console.log('bookmarksInLists:  ' + count('bookmarksInLists'));
+  console.log('listCollaborators: ' + count('listCollaborators'));
+  console.log('listInvitations:   ' + count('listInvitations'));
+} else {
+  const tx = db.transaction(() => {
+    if (tableExists('bookmarksInLists'))
+      db.prepare('DELETE FROM bookmarksInLists').run();
+    if (tableExists('listInvitations'))
+      db.prepare('DELETE FROM listInvitations').run();
+    if (tableExists('listCollaborators'))
+      db.prepare('DELETE FROM listCollaborators').run();
+    if (tableExists('bookmarkLists'))
+      db.prepare('DELETE FROM bookmarkLists').run();
+  });
+  tx();
+  db.exec('VACUUM');
+  console.log('wiped');
+}
+db.close();
+NODE
 }
 
 echo "→ Counting current Spaces / Lists…"
