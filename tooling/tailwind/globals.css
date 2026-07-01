@@ -143,4 +143,81 @@
   .krystal-hide-scrollbar::-webkit-scrollbar {
     display: none; /* WebKit */
   }
+
+  /*
+   * Krystal in-progress card animations.
+   *
+   * `krystal-saving-mark`   — the italic serif "K" breathes softly (2.4s
+   *                           ease-in-out cycle) so it feels alive without
+   *                           demanding attention.
+   * `krystal-saving-shimmer` — a diagonal band sweeps across the card
+   *                           surface every 1.8s to signal "in progress".
+   *                           Uses `mix-blend-mode: overlay` so it reads
+   *                           correctly on both light and dark card surfaces.
+   */
+  .krystal-saving-card {
+    /* Sit slightly deeper than a normal card to hint at pending state. */
+    background: hsl(var(--card));
+  }
+
+  .krystal-saving-mark {
+    animation: krystal-saving-breathe 2.4s ease-in-out infinite;
+    text-shadow: 0 0 24px hsl(var(--primary) / 0.25);
+  }
+
+  .krystal-saving-shimmer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(
+      110deg,
+      transparent 30%,
+      hsl(var(--primary) / 0.18) 50%,
+      transparent 70%
+    );
+    background-size: 250% 100%;
+    animation: krystal-saving-shimmer 1.8s linear infinite;
+    mix-blend-mode: overlay;
+  }
+
+  .dark .krystal-saving-shimmer {
+    background: linear-gradient(
+      110deg,
+      transparent 30%,
+      hsl(var(--primary) / 0.22) 50%,
+      transparent 70%
+    );
+    background-size: 250% 100%;
+    mix-blend-mode: screen;
+  }
+
+  @keyframes krystal-saving-breathe {
+    0%, 100% {
+      opacity: 0.55;
+      transform: scale(0.98);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.03);
+    }
+  }
+
+  @keyframes krystal-saving-shimmer {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -100% 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .krystal-saving-mark,
+    .krystal-saving-shimmer {
+      animation: none;
+    }
+    .krystal-saving-shimmer {
+      opacity: 0.35;
+    }
+  }
 }

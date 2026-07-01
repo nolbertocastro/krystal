@@ -1,4 +1,5 @@
 import { memo, useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import KeyboardShortcutsDialog from "@/components/dashboard/KeyboardShortcutsDialog";
 import NoBookmarksBanner from "@/components/dashboard/bookmarks/NoBookmarksBanner";
 import { ActionButton } from "@/components/ui/action-button";
@@ -23,14 +24,20 @@ import resolveConfig from "tailwindcss/resolveConfig";
 
 import type { ZBookmark } from "@karakeep/shared/types/bookmarks";
 import { useBookmarkListContext } from "@karakeep/shared-react/hooks/bookmark-list-context";
+import { useTRPC } from "@karakeep/shared-react/trpc";
 
 import BookmarkCard from "./BookmarkCard";
 import { BookmarkContextMenuTrigger } from "./BookmarkContextMenu";
 import BookmarkFormattedCreatedAt from "./BookmarkFormattedCreatedAt";
 import EditorCard from "./EditorCard";
+import KrystalSavingCard from "./KrystalSavingCard";
 import UnknownCard from "./UnknownCard";
 
-import { getBookmarkTitle } from "@karakeep/shared/utils/bookmarkUtils";
+import {
+  getBookmarkRefreshInterval,
+  getBookmarkTitle,
+  isBookmarkStillLoading,
+} from "@karakeep/shared/utils/bookmarkUtils";
 
 // mymind card wrapper.
 //
@@ -89,7 +96,7 @@ function BelowCardCaption({ bookmark }: { bookmark: ZBookmark }) {
 }
 
 const BookmarkGridItem = memo(function BookmarkGridItem({
-  bookmark,
+  bookmark: initialData,
   index,
 }: {
   bookmark: ZBookmark;
@@ -98,6 +105,29 @@ const BookmarkGridItem = memo(function BookmarkGridItem({
   const isFocused = useKeyboardNavigationStore(
     (state) => state.isNavigating && state.focusedIndex === index,
   );
+
+  // Poll the row while the pipeline is still working so the placeholder
+  // → real-card swap happens automatically. This mirrors the polling
+  // BookmarkCard already does internally, but hoisting it here lets us
+  // switch the entire card (not just its inner image) once loading ends.
+  // `getBookmarkRefreshInterval` returns 1s for the first 30s, then 10s
+  // for 10min, then 60s for 6h, then stops.
+  const api = useTRPC();
+  const { data: bookmark } = useQuery(
+    api.bookmarks.getBookmark.queryOptions(
+      { bookmarkId: initialData.id },
+      {
+        initialData,
+        refetchInterval: (query) => {
+          const data = query.state.data;
+          if (!data) return false;
+          return getBookmarkRefreshInterval(data);
+        },
+      },
+    ),
+  );
+
+  const isLoading = isBookmarkStillLoading(bookmark);
 
   return (
     <ErrorBoundary fallback={<UnknownCard bookmark={bookmark} />}>
@@ -112,9 +142,13 @@ const BookmarkGridItem = memo(function BookmarkGridItem({
               "ring-1 ring-primary/40 ring-offset-1 ring-offset-background",
           )}
         >
-          <BookmarkCard bookmark={bookmark} bookmarkIndex={index} />
+          {isLoading ? (
+            <KrystalSavingCard bookmark={bookmark} />
+          ) : (
+            <BookmarkCard bookmark={bookmark} bookmarkIndex={index} />
+          )}
         </StyledBookmarkCard>
-        <BelowCardCaption bookmark={bookmark} />
+        {!isLoading && <BelowCardCaption bookmark={bookmark} />}
       </BookmarkContextMenuTrigger>
     </ErrorBoundary>
   );
