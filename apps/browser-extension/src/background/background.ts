@@ -57,20 +57,20 @@ function registerContextMenus(settings: Settings) {
   removeContextMenus();
   chrome.contextMenus.create({
     id: OPEN_KARAKEEP_ID,
-    title: "Open Karakeep",
+    title: "Open Krystal",
     contexts: ["action"],
   });
 
   chrome.contextMenus.create({
     id: ADD_LINK_TO_KARAKEEP_ID,
-    title: "Add to Karakeep",
+    title: "Add to Krystal",
     contexts: ["link", "page", "selection", "image"],
   });
 
   if (settings?.showCountBadge) {
     chrome.contextMenus.create({
       id: VIEW_PAGE_IN_KARAKEEP,
-      title: "View this page in Karakeep",
+      title: "View this page in Krystal",
       contexts: ["action", "page"],
     });
     if (settings?.useBadgeCache) {
