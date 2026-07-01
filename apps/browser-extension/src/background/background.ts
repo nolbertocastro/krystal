@@ -129,7 +129,18 @@ async function handleContextMenuClick(
 
     // NOTE: Firefox only allows opening context menus if it's triggered by a user action.
     // awaiting on any promise before calling this function will lose the "user action" context.
-    await chrome.action.openPopup();
+    //
+    // `chrome.action.openPopup()` throws "Could not find an active browser
+    // window" when there's no focused Chrome window at the time the event
+    // fires — e.g. when Chrome is minimized, on another Space, or when
+    // the service worker wakes up cold. The bookmark request has already
+    // been stashed in `chrome.storage.session`, so the next time the user
+    // opens the popup manually it'll pick up where it left off.
+    try {
+      await chrome.action.openPopup();
+    } catch (error) {
+      console.warn("openPopup skipped (no active window):", error);
+    }
   } else if (menuItemId === VIEW_PAGE_IN_KARAKEEP) {
     if (tab) {
       await searchCurrentUrl(tab.url);
@@ -275,8 +286,13 @@ function handleCommand(command: string, tab: chrome.tabs.Tab) {
       pageUrl: tab?.url,
     });
 
-    // now try to open the popup
-    chrome.action.openPopup();
+    // now try to open the popup. Same caveat as the context-menu handler:
+    // may throw "Could not find an active browser window" if Chrome isn't
+    // focused when the keyboard shortcut fires. Bookmark request is already
+    // stashed, so failing silently here is safe.
+    chrome.action.openPopup().catch((error) => {
+      console.warn("openPopup skipped (no active window):", error);
+    });
   } else {
     console.warn(`Received unknown command: ${command}`);
   }
