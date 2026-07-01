@@ -63,15 +63,29 @@ run_node() {
     node -e "
       const Database = require(process.env.BS3_PATH);
       const db = new Database(process.env.DB_PATH, { readonly: process.env.MODE === 'count' });
+      // Correct Karakeep schema table names (see packages/db/schema.ts):
+      //   bookmarkLists       — the lists themselves
+      //   bookmarksInLists    — the membership rows
+      //   listCollaborators   — sharing rows
+      //   listInvitations     — pending share invites
       if (process.env.MODE === 'count') {
-        const lists = db.prepare('SELECT COUNT(*) AS c FROM lists').get().c;
+        const lists = db.prepare('SELECT COUNT(*) AS c FROM bookmarkLists').get().c;
         const memb  = db.prepare('SELECT COUNT(*) AS c FROM bookmarksInLists').get().c;
-        console.log('lists:            ' + lists);
-        console.log('bookmarksInLists: ' + memb);
+        const collab = db.prepare("SELECT COUNT(*) AS c FROM sqlite_master WHERE type='table' AND name='listCollaborators'").get().c
+          ? db.prepare('SELECT COUNT(*) AS c FROM listCollaborators').get().c : 0;
+        const invites = db.prepare("SELECT COUNT(*) AS c FROM sqlite_master WHERE type='table' AND name='listInvitations'").get().c
+          ? db.prepare('SELECT COUNT(*) AS c FROM listInvitations').get().c : 0;
+        console.log('bookmarkLists:     ' + lists);
+        console.log('bookmarksInLists:  ' + memb);
+        console.log('listCollaborators: ' + collab);
+        console.log('listInvitations:   ' + invites);
       } else {
         const tx = db.transaction(() => {
           db.prepare('DELETE FROM bookmarksInLists').run();
-          db.prepare('DELETE FROM lists').run();
+          // Clean up sharing tables too (may not exist in older schemas).
+          try { db.prepare('DELETE FROM listInvitations').run(); } catch (e) {}
+          try { db.prepare('DELETE FROM listCollaborators').run(); } catch (e) {}
+          db.prepare('DELETE FROM bookmarkLists').run();
         });
         tx();
         db.exec('VACUUM');
