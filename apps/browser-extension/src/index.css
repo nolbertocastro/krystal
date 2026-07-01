@@ -1,73 +1,26 @@
 @import "@karakeep/tailwind-config/globals.css";
 
 /*
- * Krystal ambient save-confirmation card (mymind-style).
- *
- * Dark card, subtle multi-hue gradient border, centered pulsing ellipse
- * mark, and calm two-line body copy. Sized to the popup so the card IS
- * the popup — no nested containers, no wordmark, no chrome.
+ * Ambient save-confirmation progress bar.
+ * Drains left→right over the same duration as the popup auto-close (2500 ms),
+ * giving the user a subtle visual receipt that the popup is about to dismiss.
  */
-
-.krystal-toast-shell {
-  /* Neutralize the App-level `w-96 p-4` outer padding so the card fills
-     the popup edge-to-edge. Layout no longer adds its own padding. */
-  margin: -1rem;
-  padding: 6px;
-  background:
-    linear-gradient(135deg,
-      #f0c6a8 0%,
-      #e39272 18%,
-      #c85040 38%,
-      #b93a55 55%,
-      #7b5aa3 75%,
-      #8fb0d6 100%);
-  border-radius: 14px;
-}
-
-.krystal-toast-card {
-  background: #1a1b23;
-  border-radius: 10px;
-  padding: 44px 32px;
-  min-height: 200px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 22px;
-}
-
-.krystal-toast-ellipse {
-  width: 26px;
-  height: 34px;
-  border: 1.5px solid rgba(205, 204, 202, 0.55);
-  border-radius: 50%;
-  animation: krystal-ellipse-breathe 2s ease-in-out infinite;
-}
-
-.krystal-toast-copy {
-  color: rgba(205, 204, 202, 0.85);
-  font-size: 18px;
-  line-height: 1.5;
-  text-align: center;
-  font-weight: 400;
-  letter-spacing: 0.005em;
-  margin: 0;
-}
-
-@keyframes krystal-ellipse-breathe {
-  0%, 100% {
-    opacity: 0.45;
-    transform: scale(0.95);
+@keyframes krystal-progress-drain {
+  from {
+    transform: scaleX(1);
   }
-  50% {
-    opacity: 1;
-    transform: scale(1.05);
+  to {
+    transform: scaleX(0);
   }
+}
+
+.krystal-progress-bar {
+  animation: krystal-progress-drain 2500ms linear forwards;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .krystal-toast-ellipse {
+  .krystal-progress-bar {
     animation: none;
-    opacity: 0.7;
+    transform: scaleX(0.5);
   }
 }
